@@ -5,12 +5,18 @@ class DataProcessingOptions():
         self.parser = argparse.ArgumentParser()
 
     def parse_args(self):
+        self.parser.add_argument('--re_encode', action='store_true', help='re encode video to fps 25')
+        self.parser.add_argument('--extract_landmark', action='store_true', help='extract landmark')
         self.parser.add_argument('--extract_video_frame', action='store_true', help='extract video frame')
         self.parser.add_argument('--extract_audio', action='store_true', help='extract audio files from videos')
         self.parser.add_argument('--extract_deep_speech', action='store_true', help='extract deep speech features')
         self.parser.add_argument('--crop_face', action='store_true', help='crop face')
         self.parser.add_argument('--generate_training_json', action='store_true', help='generate training json file')
-
+        
+        self.parser.add_argument('--raw_video_dir', type=str, default="/workspace/data02/HDTF/datasets",
+                            help='path of source video')
+        self.parser.add_argument('--fps', type=int, default=25,
+                            help='fps of video')
         self.parser.add_argument('--source_video_dir', type=str, default="./asserts/training_data/split_video_25fps",
                             help='path of source video in 25 fps')
         self.parser.add_argument('--openface_landmark_dir', type=str, default="./asserts/training_data/split_video_25fps_landmark_openface",

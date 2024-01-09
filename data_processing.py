@@ -4,11 +4,73 @@ import subprocess
 import cv2
 import numpy as np
 import json
+from pathlib import Path
+import requests
 
 from utils.data_processing import load_landmark_openface,compute_crop_radius
 from utils.deep_speech import DeepSpeech
 from config.config import DataProcessingOptions
 
+
+
+def re_encode_video_fps(source_video_dir, res_video_dir, fps):
+    
+    def encode_video(source_video_path, res_video_path, fps):
+            
+        command = [
+            'ffmpeg',
+            '-i', source_video_path,
+            '-r', str(fps),
+            '-c:v', 'libx264',
+            '-crf', '18',
+            '-c:a', 'copy',
+            res_video_path
+        ]
+        # subprocess를 사용하여 명령 실행 및 오류 확인
+        try:
+            result = subprocess.run(command, check=True)
+            print("Command executed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+   
+    if not os.path.exists(source_video_dir):
+        raise ('wrong path of video dir')
+    if not os.path.exists(res_video_dir):
+        os.makedirs(res_video_dir, exist_ok=True)    
+    video_path_list = glob.glob(os.path.join(source_video_dir, '*.mp4'))
+    
+    for source_video_path in video_path_list:
+        res_video_path = Path(res_video_dir) / Path(source_video_path).name
+        res_video_path = str(res_video_path)
+        encode_video(source_video_path, res_video_path, fps)
+
+def extract_landmark(source_video_dir, res_landmark_dir):
+    OPEN_FACE_SERVER_URL = "http://openface-server-1:8000"
+    res_landmark_dir = os.path.abspath(res_landmark_dir)
+    def preprocess_request(source_video_path: str, source_openface_landmark_path: str):
+        url = f"{OPEN_FACE_SERVER_URL}/process_video"
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        data = {"video_path": source_video_path, "save_path": source_openface_landmark_path}
+
+        response = requests.post(url, headers=headers, json=data)
+        status = response.json().get("message", None)
+        if status is None:
+            status = "Error"
+        return status
+    
+    if not os.path.exists(source_video_dir):
+        raise ('wrong path of video dir')
+    if not os.path.exists(res_landmark_dir):
+        os.mkdir(res_landmark_dir)    
+    video_path_list = glob.glob(os.path.join(source_video_dir, '*.mp4'))
+    for source_video_path in video_path_list:
+        source_video_path = os.path.abspath(source_video_path)
+        status = preprocess_request(source_video_path, res_landmark_dir)
+        print(status)
+    
+        
 def extract_audio(source_video_dir,res_audio_dir):
     '''
     extract audio files from videos
@@ -166,6 +228,12 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
 
 if __name__ == '__main__':
     opt = DataProcessingOptions().parse_args()
+    ##########  step0: re encode video
+    if opt.re_encode:
+        re_encode_video_fps(opt.raw_video_dir, opt.source_video_dir, opt.fps)
+    ##########  step0: extract Landmarks
+    if opt.extract_landmark:
+        extract_landmark(opt.source_video_dir, opt.openface_landmark_dir)
     ##########  step1: extract video frames
     if opt.extract_video_frame:
         extract_video_frame(opt.source_video_dir, opt.video_frame_dir)
